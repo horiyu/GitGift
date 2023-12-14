@@ -1,0 +1,7 @@
+.outlinedButton {
+  border: 1px solid #000;
+  border-radius: 6px;
+  padding: 4px 8px;
+  background-color: transparent;
+  color: #000;
+}

@@ -4,7 +4,17 @@
   align-items: center;
 }
 
-.searchBox {
+.title {
+  text-align: center;
+  margin-top: 20px;
+  margin-bottom: 30px;
+}
+
+.title p {
+  margin: 10px;
+}
+
+.sendBox {
   display: flex;
   border: 2px solid #000;
   border-radius: 3px;
@@ -15,7 +25,7 @@
   position: relative;
 }
 
-.searchBox input[type="text"] {
+.sendBox input[type="text"] {
   flex: 1;
   border: none;
   border-radius: 3px 0 0 3px;
@@ -24,7 +34,7 @@
   outline: none;
 }
 
-.searchBox input[type="submit"] {
+.sendBox input[type="submit"] {
   border: none;
   background-color: #000;
   color: white;
@@ -37,4 +47,8 @@
   right: 0px;
   top: -5px;
   outline: none;
+}
+
+.sendBoxMsg {
+  margin: 30px;
 }

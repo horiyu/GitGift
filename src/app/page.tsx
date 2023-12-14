@@ -7,10 +7,17 @@ const BASE_PATH = basePath ? basePath : ""
 export default function Home() {
   return (
     <main className={styles.main}>
-      <form className={styles.searchBox}>
+      <div className={styles.title}>
+        <h1>GitGift</h1>
+        <p>Gift a heartfelt message to someone special through Git</p>
+      </div>
+      <form className={styles.sendBox}>
         <input type="text" placeholder="Send to..." />
         <input type="submit" value="Send" />
       </form>
+      <div className={styles.sendBoxMsg}>
+        <p>Free and so easy!</p>
+      </div>
     </main>
   )
 }

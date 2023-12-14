@@ -7,6 +7,10 @@ const BASE_PATH = basePath ? basePath : ""
 export default function Home() {
   return (
     <main className={styles.main}>
+      <form className={styles.searchBox}>
+        <input type="text" placeholder="Send to..." />
+        <input type="submit" value="Send" />
+      </form>
     </main>
   )
 }

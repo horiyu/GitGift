@@ -48,6 +48,7 @@ export default function UserPage({
 
   const session = useSession();
   const isThisMe: boolean = !!user?.id && !!session?.data?.user?.image && user.id.toString() === session?.data?.user?.image.match(/\/u\/(\d+)\?/)?.[1];
+  const hasGitGiftBox = repos ? repos.some(repo => repo.name === 'GitGiftBOX') : false;
 
   return (
     <div>
@@ -56,9 +57,18 @@ export default function UserPage({
           <img className={styles.icon} src={user.avatar_url} alt={user.login} style={{ width: "100px", height: "100px" }} />
           <h1>{user.name}</h1>
           <p>Followers: {followers ? followers.length : 'Loading...'}</p>
-          {repos ? repos.some(repo => repo.name === 'GitGiftBOX') ? repos.map(repo => repo.name === 'GitGiftBOX' ? <li key={repo.id}>{repo.name}</li> : null) : `${user.name} might not have the GitGiftBOX...` : 'Loading...'}
+          {hasGitGiftBox ?
+            repos!.map(repo => repo.name === 'GitGiftBOX' ?
+              <li key={repo.id}>{repo.name}</li> :
+              null) :
+            <p><b>{isThisMe ? "You" : user.name}</b> might not have the GitGiftBOX...</p>
+          }
           <br />
-          {isThisMe ? <OutlinedButton onClick={() => signOut()}>Sign Out</OutlinedButton> : null}
+
+          {isThisMe ?
+            <OutlinedButton onClick={() => signOut()}>Sign Out</OutlinedButton> :
+            null
+          }
         </>
       )}
     </div>

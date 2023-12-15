@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation'; // ファイルの先頭でimport文を修正
 import { useEffect, useState } from 'react';
 import { Octokit } from "@octokit/rest";
+import { useSession, signOut } from 'next-auth/react';
+import OutlinedButton from '@/components/Button/Outlined';
 import styles from './user.module.css';
 
 const octokit = new Octokit({
@@ -44,6 +46,9 @@ export default function UserPage({
     fetchData();
   }, [params.user]);
 
+  const session = useSession();
+  const isThisMe: boolean = !!user?.id && !!session?.data?.user?.image && user.id.toString() === session?.data?.user?.image.match(/\/u\/(\d+)\?/)?.[1];
+
   return (
     <div>
       {user && (
@@ -55,6 +60,7 @@ export default function UserPage({
           <ul>
             {repos ? repos.map(repo => <li key={repo.id}>{repo.name}</li>) : 'Loading...'}
           </ul>
+          {isThisMe ? <OutlinedButton onClick={() => signOut()}>Sign Out</OutlinedButton> : null}
         </>
       )}
     </div>

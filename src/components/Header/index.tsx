@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import styles from './header.module.css'
 import OutlinedButton from '../Button/Outlined'
-import { signIn, signOut } from 'next-auth/react'
+import { signIn } from 'next-auth/react'
 import { Session } from 'next-auth'
 
 export default function Header({ session }: { session: Session | null }) {
@@ -19,7 +19,6 @@ export default function Header({ session }: { session: Session | null }) {
             style={{ width: "32px", height: "32px" }}
           />
         </Link> :
-        // <OutlinedButton onClick={() => signOut()}>{session.user?.name}</OutlinedButton>
         <OutlinedButton onClick={() => signIn()}>Sign in</OutlinedButton>
       }
     </header>

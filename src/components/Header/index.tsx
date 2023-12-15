@@ -9,7 +9,7 @@ import { Session } from 'next-auth'
 export default function Header({ session }: { session: Session | null }) {
   return (
     <header className={styles.header}>
-      <div>GitGift</div>
+      <Link href={`./`}>GitGift</Link>
       {(session) ?
         <Link href={`./${session.user?.name}`}>
           <img

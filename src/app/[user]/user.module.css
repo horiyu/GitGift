@@ -1,0 +1,5 @@
+.icon {
+  border-radius: 50%;
+  border-width: thin;
+  box-shadow: 0 0 0 1px rgba(31, 35, 40, 0.15);
+}

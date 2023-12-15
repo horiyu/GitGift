@@ -6,3 +6,9 @@
   margin-left: 20%;
   margin-right: 20%;
 }
+
+.icon {
+  border: 1px solid #000;
+  border-radius: 50%;
+  border-width: thin;
+}

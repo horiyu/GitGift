@@ -52,13 +52,15 @@ export default function UserPage({
   const hasGitGiftBox = repos ? repos.some(repo => repo.name === 'GitGiftBOX') : false;
 
   return (
-    <div>
+    <div className={styles.main}>
       {user && (
         <>
-          <Link href={user.html_url}>
-            <img className={styles.icon} src={user.avatar_url} alt={user.login} style={{ width: "100px", height: "100px" }} />
-            <h1>{user.name}</h1>
-          </Link>
+          <div className={styles.profile}>
+            <Link href={user.html_url}>
+              <img className={styles.icon} src={user.avatar_url} alt={user.login} style={{ width: "150px", height: "150px" }} />
+              <h1>{user.name}</h1>
+            </Link>
+          </div>
           {hasGitGiftBox ?
             repos!.map(repo => repo.name === 'GitGiftBOX' ?
               <li key={repo.id}>{repo.name}</li> :
@@ -66,7 +68,7 @@ export default function UserPage({
             <p><b>{isThisMe ? "You" : user.name}</b> might not have the GitGiftBOX...</p>
           }
           {!hasGitGiftBox && isThisMe ?
-            <OutlinedButton>GET GitGiftBOX</OutlinedButton> :
+            <OutlinedButton className={styles.getGGB}>GET GitGiftBOX</OutlinedButton> :
             null}
           <br />
 

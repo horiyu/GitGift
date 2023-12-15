@@ -49,7 +49,7 @@ export default function UserPage({
       {user && (
         <>
           <img className={styles.icon} src={user.avatar_url} alt={user.login} style={{ width: "100px", height: "100px" }} />
-          <h1>{user.login}</h1>
+          <h1>{user.name}</h1>
           <p>Followers: {followers ? followers.length : 'Loading...'}</p>
           <h2>Repositories:</h2>
           <ul>

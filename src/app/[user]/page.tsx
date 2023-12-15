@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Octokit } from "@octokit/rest";
 import { useSession, signOut } from 'next-auth/react';
 import OutlinedButton from '@/components/Button/Outlined';
+import Link from 'next/link';
 import styles from './user.module.css';
 
 const octokit = new Octokit({
@@ -54,9 +55,10 @@ export default function UserPage({
     <div>
       {user && (
         <>
-          <img className={styles.icon} src={user.avatar_url} alt={user.login} style={{ width: "100px", height: "100px" }} />
-          <h1>{user.name}</h1>
-          <p>Followers: {followers ? followers.length : 'Loading...'}</p>
+          <Link href={user.html_url}>
+            <img className={styles.icon} src={user.avatar_url} alt={user.login} style={{ width: "100px", height: "100px" }} />
+            <h1>{user.name}</h1>
+          </Link>
           {hasGitGiftBox ?
             repos!.map(repo => repo.name === 'GitGiftBOX' ?
               <li key={repo.id}>{repo.name}</li> :

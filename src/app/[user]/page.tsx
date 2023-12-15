@@ -63,6 +63,9 @@ export default function UserPage({
               null) :
             <p><b>{isThisMe ? "You" : user.name}</b> might not have the GitGiftBOX...</p>
           }
+          {!hasGitGiftBox && isThisMe ?
+            <OutlinedButton>GET GitGiftBOX</OutlinedButton> :
+            null}
           <br />
 
           {isThisMe ?

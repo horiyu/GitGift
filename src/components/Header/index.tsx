@@ -16,7 +16,7 @@ export default function Header({ session }: { session: Session | null }) {
             className={styles.icon}
             src={session.user?.image || ""}
             alt={session.user?.name || "icon"}
-            style={{ width: "30px", height: "30px" }}
+            style={{ width: "32px", height: "32px" }}
           />
         </Link> :
         // <OutlinedButton onClick={() => signOut()}>{session.user?.name}</OutlinedButton>

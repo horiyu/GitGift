@@ -2,6 +2,7 @@ import Image from 'next/image'
 import styles from './page.module.css'
 
 import { basePath } from "../../next.config"
+import SearchBOX from '@/components/SearchBOX'
 const BASE_PATH = basePath ? basePath : ""
 
 export default function Home() {
@@ -11,10 +12,7 @@ export default function Home() {
         <h1>GitGift</h1>
         <p>Gift a heartfelt message to someone special through Git</p>
       </div>
-      <form className={styles.sendBox}>
-        <input type="text" placeholder="Send to..." />
-        <input type="submit" value="Send" />
-      </form>
+      <SearchBOX placeholder='Search'></SearchBOX>
       <div className={styles.sendBoxMsg}>
         <p>Free and so easy!</p>
       </div>

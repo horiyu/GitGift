@@ -7,6 +7,7 @@ import { useSession, signOut } from 'next-auth/react';
 import OutlinedButton from '@/components/Button/Outlined';
 import Link from 'next/link';
 import styles from './user.module.css';
+import SearchBOX from '@/components/SearchBOX';
 
 const octokit = new Octokit({
   auth: process.env.NEXT_PUBLIC_GITHUB_TOKEN,
@@ -77,7 +78,7 @@ export default function UserPage({
           </div>
           {hasGitGiftBox ?
             repos!.map(repo => repo.name === 'GitGiftBOX' ?
-              <li key={repo.id}>{repo.name}</li> :
+              <SearchBOX key={repo.id} placeholder="Send to..."></SearchBOX> :
               null) :
             <p><b>{isThisMe ? "You" : user.name}</b> might not have the GitGiftBOX...</p>
           }

@@ -9,8 +9,22 @@ import Link from 'next/link';
 import styles from './user.module.css';
 
 const octokit = new Octokit({
-  auth: process.env.GITHUB_TOKEN, // テンプレート文字列を削除
+  auth: process.env.NEXT_PUBLIC_GITHUB_TOKEN,
 });
+
+const forkRepository = async (repoOwner: string, repoName: string) => {
+  try {
+    // Use the octokit instance to create a fork of the specified repository
+    const response = await octokit.request('POST /repos/horiyu/GitGiftBOX-Fork/forks', {
+      owner: repoOwner,
+      repo: repoName,
+      name: repoName,
+      default_branch_only: true,
+    });
+  } catch (error) {
+    console.error("Failed to fork the repository", error);
+  }
+};
 
 export default function UserPage({
   params
@@ -68,7 +82,7 @@ export default function UserPage({
             <p><b>{isThisMe ? "You" : user.name}</b> might not have the GitGiftBOX...</p>
           }
           {!hasGitGiftBox && isThisMe ?
-            <OutlinedButton className={styles.getGGB}>GET GitGiftBOX</OutlinedButton> :
+            <OutlinedButton className={styles.getGGB} onClick={() => forkRepository(user.name, 'GitGiftBOX')}>GET GitGiftBOX</OutlinedButton> :
             null}
           <br />
 

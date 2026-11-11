@@ -1,9 +1,5 @@
-import Image from 'next/image'
 import styles from './page.module.css'
-
-import { basePath } from "../../next.config"
 import SearchBOX from '@/components/SearchBOX'
-const BASE_PATH = basePath ? basePath : ""
 
 export default function Home() {
   return (
@@ -12,7 +8,7 @@ export default function Home() {
         <h1>GitGift</h1>
         <p>Gift a heartfelt message to someone special through Git</p>
       </div>
-      <SearchBOX placeholder='Search'></SearchBOX>
+      <SearchBOX placeholder="Send to... (GitHub username)" />
       <div className={styles.sendBoxMsg}>
         <p>Free and so easy!</p>
       </div>

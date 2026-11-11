@@ -1,0 +1,110 @@
+.section {
+  width: 500px;
+  max-width: calc(100vw - 32px);
+  margin-top: 30px;
+  text-align: left;
+}
+
+.section h2 {
+  font-size: 1.1em;
+  margin-bottom: 12px;
+}
+
+.list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pending {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #000;
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.pending a,
+.card a,
+.notice a {
+  text-decoration: underline;
+}
+
+.card {
+  border: 1px solid rgba(31, 35, 40, 0.15);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.cardMessage {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin-bottom: 8px;
+}
+
+.date,
+.counter {
+  color: #59636e;
+  font-size: 0.9em;
+}
+
+.over {
+  color: #cf222e;
+  font-size: 0.9em;
+}
+
+.sendForm {
+  width: 500px;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+
+.textarea {
+  width: 100%;
+  border: 2px solid #000;
+  border-radius: 3px;
+  padding: 8px 10px;
+  font: inherit;
+  resize: vertical;
+  outline: none;
+}
+
+.sendFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.primary {
+  border: none;
+  border-radius: 3px;
+  background-color: #000;
+  color: #fff;
+  padding: 6px 14px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.primary:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.notice {
+  color: #1a7f37;
+}
+
+.error {
+  color: #cf222e;
+  margin-top: 8px;
+}
+
+.boxButton {
+  margin: 20px 0;
+}

@@ -16,7 +16,18 @@
   box-shadow: 0 0 0 1px rgba(31, 35, 40, 0.15);
 }
 
-.getGGB {
-  margin-top: 30px;
-  margin-bottom: 30px;
+.login {
+  color: #59636e;
+  margin-top: 4px;
+}
+
+.signIn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.signOut {
+  margin: 40px 0;
 }

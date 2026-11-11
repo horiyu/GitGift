@@ -1,98 +1,122 @@
-'use client'
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { isValidLogin } from '@/lib/gift'
+import { errorStatus, getBox, getOpenedGifts, getPendingGifts, publicOctokit } from '@/lib/github'
+import { SignInButton, SignOutButton } from '@/components/Button/AuthButtons'
+import BoxButton from '@/components/Gift/BoxButton'
+import PendingGifts from '@/components/Gift/PendingGifts'
+import SendGiftForm from '@/components/Gift/SendGiftForm'
+import giftStyles from '@/components/Gift/gift.module.css'
+import styles from './user.module.css'
 
-import { useRouter } from 'next/navigation'; // ファイルの先頭でimport文を修正
-import { useEffect, useState } from 'react';
-import { Octokit } from "@octokit/rest";
-import { useSession, signOut } from 'next-auth/react';
-import OutlinedButton from '@/components/Button/Outlined';
-import Link from 'next/link';
-import styles from './user.module.css';
-import SearchBOX from '@/components/SearchBOX';
+export const dynamic = 'force-dynamic'
 
-const octokit = new Octokit({
-  auth: process.env.NEXT_PUBLIC_GITHUB_TOKEN,
-});
-
-const forkRepository = async (repoOwner: string, repoName: string) => {
+async function getUser(login: string) {
   try {
-    // Use the octokit instance to create a fork of the specified repository
-    const response = await octokit.request('POST /repos/horiyu/GitGiftBOX-Fork/forks', {
-      owner: repoOwner,
-      repo: repoName,
-      name: repoName,
-      default_branch_only: true,
-    });
+    const { data } = await publicOctokit().rest.users.getByUsername({ username: login })
+    return data
   } catch (error) {
-    console.error("Failed to fork the repository", error);
+    if (errorStatus(error) === 404) return null
+    throw error
   }
-};
+}
 
-export default function UserPage({
-  params
-}: {
-  params: { user: string }
-}) {
-  const router = useRouter();
-  const [user, setUser] = useState<null | any>(null); // useStateの型を指定
-  const [followers, setFollowers] = useState<null | any[]>(null); // useStateの型を指定
-  const [repos, setRepos] = useState<null | any[]>(null); // useStateの型を指定
+export default async function UserPage({ params }: { params: { user: string } }) {
+  const login = decodeURIComponent(params.user)
+  if (!isValidLogin(login)) notFound()
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const userData = await octokit.rest.users.getByUsername({
-          username: params.user
-        });
-        setUser(userData.data);
+  const [user, session] = await Promise.all([getUser(login), getServerSession(authOptions)])
+  if (!user) notFound()
 
-        const followersData = await octokit.rest.users.listFollowersForUser({
-          username: params.user
-        });
-        setFollowers(followersData.data);
+  const octokit = publicOctokit()
+  const box = await getBox(octokit, user.login)
+  const viewer = session?.user?.login
+  const isThisMe = !!viewer && viewer.toLowerCase() === user.login.toLowerCase()
+  const name = user.name || user.login
 
-        const reposData = await octokit.rest.repos.listForUser({
-          username: params.user
-        });
-        setRepos(reposData.data);
-      } catch (error) {
-        router.push('/404');
-      }
-    };
-
-    fetchData();
-  }, [params.user]);
-
-  const session = useSession();
-  const isThisMe: boolean = !!user?.id && !!session?.data?.user?.image && user.id.toString() === session?.data?.user?.image.match(/\/u\/(\d+)\?/)?.[1];
-  const hasGitGiftBox = repos ? repos.some(repo => repo.name === 'GitGiftBOX') : false;
+  const [opened, pending] = box.exists
+    ? await Promise.all([
+        getOpenedGifts(octokit, user.login),
+        isThisMe && box.hasIssues ? getPendingGifts(octokit, user.login) : Promise.resolve([]),
+      ])
+    : [[], []]
 
   return (
     <div className={styles.main}>
-      {user && (
-        <>
-          <div className={styles.profile}>
-            <Link href={user.html_url}>
-              <img className={styles.icon} src={user.avatar_url} alt={user.login} style={{ width: "150px", height: "150px" }} />
-              <h1>{user.name}</h1>
-            </Link>
-          </div>
-          {hasGitGiftBox ?
-            repos!.map(repo => repo.name === 'GitGiftBOX' ?
-              <SearchBOX key={repo.id} placeholder="Send to..."></SearchBOX> :
-              null) :
-            <p><b>{isThisMe ? "You" : user.name}</b> might not have the GitGiftBOX...</p>
-          }
-          {!hasGitGiftBox && isThisMe ?
-            <OutlinedButton className={styles.getGGB} onClick={() => forkRepository(user.name, 'GitGiftBOX')}>GET GitGiftBOX</OutlinedButton> :
-            null}
-          <br />
+      <div className={styles.profile}>
+        <Link href={user.html_url}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className={styles.icon} src={user.avatar_url} alt={user.login} width={150} height={150} />
+          <h1>{name}</h1>
+          <p className={styles.login}>@{user.login}</p>
+        </Link>
+      </div>
 
-          {isThisMe ?
-            <OutlinedButton onClick={() => signOut()}>Sign Out</OutlinedButton> :
-            null
-          }
+      {!box.exists && (
+        <>
+          <p>
+            <b>{isThisMe ? 'You' : name}</b> {isThisMe ? "don't" : "doesn't"} have a GitGiftBOX yet.
+          </p>
+          {isThisMe && <BoxButton label="GET GitGiftBOX" />}
         </>
       )}
+
+      {box.exists && !box.hasIssues && (
+        <>
+          <p>This GitGiftBOX cannot receive gifts yet because Issues are disabled.</p>
+          {isThisMe && <BoxButton label="Enable receiving gifts" />}
+        </>
+      )}
+
+      {box.exists && box.hasIssues && !isThisMe && (
+        viewer ? (
+          <SendGiftForm to={user.login} />
+        ) : (
+          <div className={styles.signIn}>
+            <p>Sign in with GitHub to send a gift to {name}.</p>
+            <SignInButton />
+          </div>
+        )
+      )}
+
+      {isThisMe && box.exists && (
+        <PendingGifts
+          gifts={pending
+            // The Issue list can lag behind a just-opened gift; the README is the source of truth.
+            .filter((gift) => !opened.some((row) => row.issueUrl === gift.htmlUrl))
+            .map(({ number, from, createdAt }) => ({ number, from, createdAt }))}
+        />
+      )}
+
+      {box.exists && (
+        <section className={giftStyles.section}>
+          <h2>
+            <a href={box.htmlUrl}>GitGiftBOX</a> · {opened.length} {opened.length === 1 ? 'gift' : 'gifts'}
+          </h2>
+          {opened.length === 0 ? (
+            <p className={giftStyles.date}>No gifts opened yet.</p>
+          ) : (
+            <ul className={giftStyles.list}>
+              {[...opened].reverse().map((gift, index) => (
+                <li key={gift.issueUrl ?? index} className={giftStyles.card}>
+                  <p className={giftStyles.cardMessage}>{gift.message}</p>
+                  <span className={giftStyles.date}>
+                    from <Link href={`/${gift.from}`}>@{gift.from}</Link> · {gift.date}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {isThisMe && (
+        <div className={styles.signOut}>
+          <SignOutButton />
+        </div>
+      )}
     </div>
-  );
+  )
 }

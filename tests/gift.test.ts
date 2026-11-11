@@ -4,6 +4,7 @@ import {
   appendRow,
   buildGiftIssueBody,
   escapeCell,
+  fenceFor,
   hasRowForIssue,
   isGiftIssueBody,
   isValidLogin,
@@ -57,6 +58,26 @@ describe('gift issue envelope', () => {
   test('survives CRLF line endings introduced by GitHub edits', () => {
     const body = buildGiftIssueBody('line1\nline2').replace(/\n/g, '\r\n')
     assert.equal(parseGiftIssueBody(body), 'line1\nline2')
+  })
+  test('puts the message in a code fence so mentions and references are not processed', () => {
+    const body = buildGiftIssueBody('Thanks @octocat for #12 and https://github.com/a/b/issues/1')
+    const lines = body.split('\n')
+    const start = lines.indexOf('```text')
+    assert.ok(start > 0, 'opening fence present')
+    assert.equal(lines[start + 1], 'Thanks @octocat for #12 and https://github.com/a/b/issues/1')
+    assert.equal(lines[start + 2], '```')
+  })
+  test('uses a fence longer than any backtick run in the message', () => {
+    assert.equal(fenceFor('no ticks'), '```')
+    assert.equal(fenceFor('a ```` b'), '`````')
+    const message = 'code: ```\nstill inside ```` the gift'
+    const body = buildGiftIssueBody(message)
+    assert.ok(body.includes('`````text\n'))
+    assert.equal(parseGiftIssueBody(body), message)
+  })
+  test('still parses gifts written before the fence was introduced', () => {
+    const legacy = '<!-- gitgift:v1 -->\n<!-- gitgift:message:start -->\nhello\n<!-- gitgift:message:end -->\n'
+    assert.equal(parseGiftIssueBody(legacy), 'hello')
   })
   test('ignores ordinary issues', () => {
     assert.equal(isGiftIssueBody('Please fix the typo'), false)

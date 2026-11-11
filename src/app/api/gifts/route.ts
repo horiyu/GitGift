@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { BOX_REPO, buildGiftIssueBody, giftIssueTitle, isValidLogin, validateMessage } from '@/lib/gift'
-import { errorStatus, getBox, viewerFromRequest } from '@/lib/github'
+import { errorStatus, getBox, guardMutation, unauthorized, viewerFromRequest } from '@/lib/github'
 
 // Wraps a gift: opens an Issue on the recipient's GitGiftBOX as the signed-in sender.
 // GitHub records the Issue author, so the sender cannot be spoofed.
 export async function POST(req: NextRequest) {
+  const rejected = guardMutation(req)
+  if (rejected) return rejected
   const viewer = await viewerFromRequest(req)
-  if (!viewer) return NextResponse.json({ error: 'Please sign in again to send a gift.' }, { status: 401 })
+  if (!viewer) return unauthorized()
 
   let payload: { to?: unknown; message?: unknown }
   try {
@@ -44,7 +46,10 @@ export async function POST(req: NextRequest) {
     const status = errorStatus(error)
     console.error('Failed to send gift', error)
     if (status === 410) return NextResponse.json({ error: `@${to}'s GitGiftBOX has Issues disabled.` }, { status: 409 })
-    if (status === 403) return NextResponse.json({ error: 'GitHub refused the request. Try signing in again.' }, { status: 403 })
+    // A GitHub App token is limited to repositories where the app is installed.
+    if (status === 403 || status === 404) {
+      return NextResponse.json({ error: `@${to} has not connected their GitGiftBOX to GitGift yet.` }, { status: 409 })
+    }
     return NextResponse.json({ error: 'Failed to send the gift.' }, { status: 502 })
   }
 }

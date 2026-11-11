@@ -37,16 +37,27 @@ export function giftIssueTitle(senderLogin: string): string {
   return `🎁 A gift from @${senderLogin}`
 }
 
+// A fence longer than any backtick run in the message, so the message cannot close it early.
+export function fenceFor(message: string): string {
+  const longestRun = Math.max(0, ...(message.match(/`+/g) ?? []).map((run) => run.length))
+  return '`'.repeat(Math.max(3, longestRun + 1))
+}
+
+// The message is placed in a fenced code block. GitHub does not process @mentions, #references
+// or autolinks inside code, so a gift cannot be used to notify or cross-reference third parties.
 export function buildGiftIssueBody(message: string, siteUrl?: string): string {
   const via = siteUrl ? `[GitGift](${siteUrl})` : 'GitGift'
+  const fence = fenceFor(message)
   return [
     MARKER,
     MESSAGE_START,
+    `${fence}text`,
     message,
+    fence,
     MESSAGE_END,
     '',
     '---',
-    `This gift was wrapped with ${via}. The owner of this box can open it there to add it to the README.`,
+    `This gift was wrapped with ${via}. It is public. The owner of this box can open it there to add it to the README.`,
   ].join('\n')
 }
 
@@ -60,7 +71,13 @@ export function parseGiftIssueBody(body: string | null | undefined): string | nu
   const start = text.indexOf(MESSAGE_START)
   const end = text.indexOf(MESSAGE_END, start + MESSAGE_START.length)
   if (start === -1 || end === -1) return null
-  const message = text.slice(start + MESSAGE_START.length, end).trim()
+  let message = text.slice(start + MESSAGE_START.length, end).trim()
+  // Unwrap the code fence (gifts from before the fence was introduced have none).
+  const lines = message.split('\n')
+  const open = lines[0]?.match(/^(`{3,})[^`]*$/)
+  if (open && lines.length >= 2 && lines[lines.length - 1] === open[1]) {
+    message = lines.slice(1, -1).join('\n').trim()
+  }
   return message.length > 0 ? message : null
 }
 

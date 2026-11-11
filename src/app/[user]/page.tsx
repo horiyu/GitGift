@@ -2,10 +2,19 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { isValidLogin } from '@/lib/gift'
-import { errorStatus, getBox, getOpenedGifts, getPendingGifts, publicOctokit } from '@/lib/github'
+import { BOX_REPO, isValidLogin } from '@/lib/gift'
+import {
+  NEW_BOX_URL,
+  appInstallUrl,
+  errorStatus,
+  getBox,
+  getOpenedGifts,
+  getPendingGifts,
+  getBoxConnection,
+  publicOctokit,
+  viewerFromCookies,
+} from '@/lib/github'
 import { SignInButton, SignOutButton } from '@/components/Button/AuthButtons'
-import BoxButton from '@/components/Gift/BoxButton'
 import PendingGifts from '@/components/Gift/PendingGifts'
 import SendGiftForm from '@/components/Gift/SendGiftForm'
 import giftStyles from '@/components/Gift/gift.module.css'
@@ -23,18 +32,34 @@ async function getUser(login: string) {
   }
 }
 
-export default async function UserPage({ params }: { params: { user: string } }) {
-  const login = decodeURIComponent(params.user)
-  if (!isValidLogin(login)) notFound()
+function safeDecode(value: string): string | null {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return null
+  }
+}
+
+export default async function UserPage({ params }: { params: Promise<{ user: string }> }) {
+  const login = safeDecode((await params).user)
+  if (!login || !isValidLogin(login)) notFound()
 
   const [user, session] = await Promise.all([getUser(login), getServerSession(authOptions)])
   if (!user) notFound()
 
   const octokit = publicOctokit()
   const box = await getBox(octokit, user.login)
-  const viewer = session?.user?.login
-  const isThisMe = !!viewer && viewer.toLowerCase() === user.login.toLowerCase()
+  const viewerLogin = session?.user?.login
+  const sessionExpired = !!session && !!session.user?.tokenExpired
+  const isThisMe = !!viewerLogin && viewerLogin.toLowerCase() === user.login.toLowerCase()
   const name = user.name || user.login
+
+  // Only the owner needs to know whether the GitGift app can act on the box.
+  const viewer = isThisMe && box.exists && !sessionExpired ? await viewerFromCookies() : null
+  const connection = viewer ? await getBoxConnection(viewer) : 'not-connected'
+  const connected = connection === 'connected'
+  const needsReauth = sessionExpired || connection === 'reauth'
+  const installUrl = appInstallUrl()
 
   const [opened, pending] = box.exists
     ? await Promise.all([
@@ -54,24 +79,65 @@ export default async function UserPage({ params }: { params: { user: string } })
         </Link>
       </div>
 
-      {!box.exists && (
-        <>
-          <p>
-            <b>{isThisMe ? 'You' : name}</b> {isThisMe ? "don't" : "doesn't"} have a GitGiftBOX yet.
-          </p>
-          {isThisMe && <BoxButton label="GET GitGiftBOX" />}
-        </>
+      {needsReauth && (
+        <div className={styles.signIn}>
+          <p>Your GitHub session has expired or is from an older version of GitGift.</p>
+          <SignInButton>Sign in again</SignInButton>
+        </div>
       )}
 
-      {box.exists && !box.hasIssues && (
-        <>
-          <p>This GitGiftBOX cannot receive gifts yet because Issues are disabled.</p>
-          {isThisMe && <BoxButton label="Enable receiving gifts" />}
-        </>
+      {!box.exists && !isThisMe && (
+        <p>
+          <b>{name}</b> doesn&apos;t have a GitGiftBOX yet.
+        </p>
       )}
 
-      {box.exists && box.hasIssues && !isThisMe && (
-        viewer ? (
+      {isThisMe && !needsReauth && (!box.exists || !box.hasIssues || !connected) && (
+        <section className={giftStyles.section}>
+          <h2>Set up your GitGiftBOX</h2>
+          <ol className={giftStyles.steps}>
+            <li>
+              {box.exists ? (
+                box.hasIssues ? (
+                  <>✅ {BOX_REPO} repository exists</>
+                ) : (
+                  <>
+                    Enable Issues in your box&apos;s{' '}
+                    <a href={`${box.htmlUrl}/settings`} target="_blank" rel="noreferrer">
+                      settings
+                    </a>{' '}
+                    (gifts arrive as Issues)
+                  </>
+                )
+              ) : (
+                <>
+                  <a href={NEW_BOX_URL} target="_blank" rel="noreferrer">
+                    Create a public repository named {BOX_REPO}
+                  </a>
+                </>
+              )}
+            </li>
+            <li>
+              {connected ? (
+                <>✅ GitGift app installed</>
+              ) : installUrl ? (
+                <>
+                  <a href={installUrl} target="_blank" rel="noreferrer">
+                    Install the GitGift app
+                  </a>{' '}
+                  and choose <b>Only select repositories → {BOX_REPO}</b>
+                </>
+              ) : (
+                <>GitGift app is not configured on this server (GITHUB_APP_SLUG).</>
+              )}
+            </li>
+          </ol>
+          <p className={giftStyles.date}>Reload this page after each step.</p>
+        </section>
+      )}
+
+      {box.exists && box.hasIssues && !isThisMe && !needsReauth && (
+        viewerLogin ? (
           <SendGiftForm to={user.login} />
         ) : (
           <div className={styles.signIn}>
@@ -81,12 +147,12 @@ export default async function UserPage({ params }: { params: { user: string } })
         )
       )}
 
-      {isThisMe && box.exists && (
+      {isThisMe && connected && (
         <PendingGifts
           gifts={pending
             // The Issue list can lag behind a just-opened gift; the README is the source of truth.
             .filter((gift) => !opened.some((row) => row.issueUrl === gift.htmlUrl))
-            .map(({ number, from, createdAt }) => ({ number, from, createdAt }))}
+            .map(({ number, from, createdAt, message }) => ({ number, from, createdAt, message }))}
         />
       )}
 

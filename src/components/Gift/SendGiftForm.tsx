@@ -25,6 +25,10 @@ export default function SendGiftForm({ to }: { to: string }) {
         rows={5}
         aria-label={`Message to @${to}`}
       />
+      <p className={styles.publicNote}>
+        Gifts are public: your message is posted as an Issue on @{to}&apos;s public GitGiftBOX under your GitHub
+        account, and @{to} may add it to the box&apos;s README.
+      </p>
       <div className={styles.sendFooter}>
         <span className={length > MAX_MESSAGE_LENGTH ? styles.over : styles.counter}>
           {length} / {MAX_MESSAGE_LENGTH}

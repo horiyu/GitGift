@@ -5,18 +5,19 @@ import { useRouter } from 'next/navigation'
 
 type State = { status: 'idle' | 'pending' | 'done' | 'error'; message?: string; url?: string }
 
-// POSTs to a GitGift API route and refreshes the server-rendered page on success.
+// POSTs JSON to a GitGift API route and refreshes the server-rendered page on success.
+// The API routes require application/json and a same-origin request (CSRF defence).
 export function useGiftAction() {
   const router = useRouter()
   const [state, setState] = useState<State>({ status: 'idle' })
 
-  const run = async (path: string, body?: unknown): Promise<boolean> => {
+  const run = async (path: string, body: unknown = {}): Promise<boolean> => {
     setState({ status: 'pending' })
     try {
       const res = await fetch(path, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: body === undefined ? undefined : JSON.stringify(body),
+        body: JSON.stringify(body),
       })
       const data: { error?: string; url?: string } = await res.json().catch(() => ({}))
       if (!res.ok || data.error) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { BOX_REPO, buildGiftIssueBody, giftIssueTitle, isValidLogin, validateMessage } from '@/lib/gift'
+import { apiError } from '@/lib/api-error'
+import { BOX_REPO, MAX_MESSAGE_LENGTH, buildGiftIssueBody, giftIssueTitle, isValidLogin, validateMessage } from '@/lib/gift'
 import { errorStatus, getBox, guardMutation, unauthorized, viewerFromRequest } from '@/lib/github'
 
 // Wraps a gift: opens an Issue on the recipient's GitGiftBOX as the signed-in sender.
@@ -14,24 +15,24 @@ export async function POST(req: NextRequest) {
   try {
     payload = await req.json()
   } catch {
-    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
+    return apiError('invalidBody', 400)
   }
 
   const to = typeof payload.to === 'string' ? payload.to.trim() : ''
-  if (!isValidLogin(to)) return NextResponse.json({ error: 'Invalid recipient.' }, { status: 400 })
+  if (!isValidLogin(to)) return apiError('invalidRecipient', 400)
   if (to.toLowerCase() === viewer.login.toLowerCase()) {
-    return NextResponse.json({ error: 'You cannot send a gift to yourself.' }, { status: 400 })
+    return apiError('selfGift', 400)
   }
 
   const validation = validateMessage(payload.message)
-  if (!validation.ok) return NextResponse.json({ error: validation.error }, { status: 400 })
+  if (!validation.ok) return apiError(validation.code, 400, { max: MAX_MESSAGE_LENGTH })
 
   const { octokit, login } = viewer
   try {
     const box = await getBox(octokit, to)
-    if (!box.exists) return NextResponse.json({ error: `@${to} does not have a GitGiftBOX yet.`, code: 'not-ready' }, { status: 404 })
+    if (!box.exists) return apiError('noBox', 404, { to })
     if (!box.hasIssues) {
-      return NextResponse.json({ error: `@${to}'s GitGiftBOX cannot receive gifts yet.`, code: 'not-ready' }, { status: 409 })
+      return apiError('issuesOff', 409, { to })
     }
 
     const siteUrl = process.env.NEXTAUTH_URL || req.nextUrl.origin
@@ -45,11 +46,11 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     const status = errorStatus(error)
     console.error('Failed to send gift', error)
-    if (status === 410) return NextResponse.json({ error: `@${to}'s GitGiftBOX has Issues disabled.`, code: 'not-ready' }, { status: 409 })
+    if (status === 410) return apiError('issuesOff', 409, { to })
     // A GitHub App token is limited to repositories where the app is installed.
     if (status === 403 || status === 404) {
-      return NextResponse.json({ error: `@${to} has not connected their GitGiftBOX to GitGift yet.`, code: 'not-ready' }, { status: 409 })
+      return apiError('notConnected', 409, { to })
     }
-    return NextResponse.json({ error: 'Failed to send the gift.' }, { status: 502 })
+    return apiError('sendFailed', 502)
   }
 }

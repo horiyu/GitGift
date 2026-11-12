@@ -2,6 +2,7 @@ import { describe, test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   appendRow,
+  boxIssueNumber,
   buildGiftIssueBody,
   escapeCell,
   fenceFor,
@@ -12,6 +13,8 @@ import {
   parseRows,
   unescapeCell,
   validateMessage,
+  verifyRows,
+  type IssueEvidence,
 } from '../src/lib/gift.ts'
 
 // README of horiyu/GitGiftBOX-Fork, the template every box is forked from.
@@ -135,5 +138,81 @@ describe('README table', () => {
 
   test('returns no rows for the empty template', () => {
     assert.deepEqual(parseRows(TEMPLATE_README), [])
+  })
+})
+
+describe('untrusted README values', () => {
+  test('drops rows whose sender is not a GitHub login', () => {
+    const readme =
+      TEMPLATE_README +
+      '| 2026-01-01 | [@/evil.com](https://evil.com) | redirect |\n' +
+      '| 2026-01-02 | @../api | traversal |\n' +
+      '| 2026-01-03 | @carol | ok |\n'
+    assert.deepEqual(
+      parseRows(readme).map((row) => row.from),
+      ['carol'],
+    )
+  })
+
+  test('keeps a link only when it points to a GitGiftBOX Issue', () => {
+    const readme =
+      TEMPLATE_README +
+      '| [d](javascript:alert(1)//issues/1) | @a | m |\n' +
+      '| [d](https://evil.com/alice/GitGiftBOX/issues/1) | @a | m |\n' +
+      '| [d](https://github.com/alice/GitGiftBOX/issues/1?x=1) | @a | m |\n' +
+      `| [d](${ISSUE}) | @a | m |\n`
+    assert.deepEqual(
+      parseRows(readme).map((row) => row.issueUrl),
+      [undefined, undefined, undefined, ISSUE],
+    )
+  })
+
+  test('boxIssueNumber requires the owner\'s own box', () => {
+    assert.equal(boxIssueNumber(ISSUE, 'alice'), 3)
+    assert.equal(boxIssueNumber(ISSUE, 'ALICE'), 3)
+    assert.equal(boxIssueNumber(ISSUE, 'bob'), null)
+    assert.equal(boxIssueNumber(undefined, 'alice'), null)
+  })
+})
+
+describe('verifyRows', () => {
+  const body = (message: string) => buildGiftIssueBody(message)
+  const evidence = (entries: IssueEvidence[]) => new Map(entries.map((entry) => [entry.number, entry]))
+  const row = (n: number, from: string, message: string, owner = 'alice') => ({
+    date: '2026-01-01',
+    from,
+    message,
+    issueUrl: `https://github.com/${owner}/GitGiftBOX/issues/${n}`,
+  })
+
+  test('accepts a row that matches the Issue its sender wrote', () => {
+    const result = verifyRows([row(3, 'Bob', 'thanks')], 'alice', evidence([{ number: 3, author: 'bob', editor: null, body: body('thanks') }]))
+    assert.deepEqual(result, [{ number: 3, issueUrl: row(3, 'Bob', '').issueUrl, date: '2026-01-01', from: 'bob', message: 'thanks' }])
+  })
+
+  test('accepts an Issue the sender edited themselves', () => {
+    const result = verifyRows([row(3, 'bob', 'thanks')], 'alice', evidence([{ number: 3, author: 'bob', editor: 'bob', body: body('thanks') }]))
+    assert.equal(result.length, 1)
+  })
+
+  test('rejects rows the owner could have forged', () => {
+    const issues = evidence([
+      { number: 3, author: 'bob', editor: null, body: body('thanks') },
+      { number: 4, author: 'bob', editor: 'alice', body: body('I endorse alice') },
+    ])
+    const rows = [
+      { date: 'd', from: 'torvalds', message: 'fake', issueUrl: undefined }, // no Issue at all
+      row(3, 'torvalds', 'thanks'), // names someone other than the Issue author
+      row(3, 'bob', 'thanks, and I endorse alice'), // text differs from the Issue
+      row(4, 'bob', 'I endorse alice'), // Issue body last edited by the owner
+      row(9, 'bob', 'thanks'), // Issue does not exist
+      row(3, 'bob', 'thanks', 'mallory'), // Issue on another user's box
+    ]
+    assert.deepEqual(verifyRows(rows, 'alice', issues), [])
+  })
+
+  test('shows each Issue at most once', () => {
+    const issues = evidence([{ number: 3, author: 'bob', editor: null, body: body('thanks') }])
+    assert.equal(verifyRows([row(3, 'bob', 'thanks'), row(3, 'bob', 'thanks')], 'alice', issues).length, 1)
   })
 })

@@ -4,8 +4,18 @@ import { Octokit } from '@octokit/rest'
 import { getToken } from 'next-auth/jwt'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { apiError } from './api-error'
 import { isTokenExpired } from './token'
-import { BOX_REPO, GiftRow, isGiftIssueBody, parseGiftIssueBody, parseRows } from './gift'
+import {
+  BOX_REPO,
+  IssueEvidence,
+  VerifiedGift,
+  boxIssueNumber,
+  isGiftIssueBody,
+  parseGiftIssueBody,
+  parseRows,
+  verifyRows,
+} from './gift'
 import { checkMutationRequest, originOf } from './request-guard'
 
 // Slug of the GitGift GitHub App, i.e. https://github.com/apps/<slug>.
@@ -26,12 +36,23 @@ function createOctokit(auth?: string) {
   return new Octokit({ auth, request: { fetch: noStoreFetch } })
 }
 
-let tokenRejected = false
+// When GITHUB_TOKEN was last rejected. It is retried after a cool-down, so a transient 401
+// does not leave the server on the unauthenticated rate limit (60 requests/hour) for good.
+let tokenRejectedAt = 0
+const TOKEN_RETRY_MS = 5 * 60 * 1000
+let warnedMissingToken = false
 
-// For public reads. GITHUB_TOKEN is optional and server-only; it only raises the rate limit,
-// so an expired or revoked token falls back to unauthenticated requests instead of failing.
+// For public reads. GITHUB_TOKEN is server-only. It raises the rate limit from 60 to 5,000
+// requests/hour and is needed to verify gift history (GitHub's GraphQL API requires a token),
+// so production deployments should always set it. An expired or revoked token falls back to
+// unauthenticated requests instead of failing.
 export function publicOctokit() {
   const token = process.env.GITHUB_TOKEN
+  if (!token && process.env.NODE_ENV === 'production' && !warnedMissingToken) {
+    warnedMissingToken = true
+    console.warn('GITHUB_TOKEN is not set: public reads are limited to 60 requests/hour and gift history cannot be verified.')
+  }
+  const tokenRejected = Date.now() - tokenRejectedAt < TOKEN_RETRY_MS
   if (!token || tokenRejected) return createOctokit()
 
   const octokit = createOctokit(token)
@@ -40,10 +61,10 @@ export function publicOctokit() {
       return await request(options)
     } catch (error) {
       if (errorStatus(error) !== 401) throw error
-      if (!tokenRejected) {
-        tokenRejected = true
-        console.warn('GITHUB_TOKEN was rejected by GitHub (401); using unauthenticated requests from now on.')
+      if (Date.now() - tokenRejectedAt >= TOKEN_RETRY_MS) {
+        console.warn('GITHUB_TOKEN was rejected by GitHub (401); using unauthenticated requests for 5 minutes.')
       }
+      tokenRejectedAt = Date.now()
       // Re-issue once through a fresh client: no token and no hooks, so this cannot recurse.
       const { method, url, headers: _headers, request: _request, baseUrl: _baseUrl, ...params } = options
       return createOctokit().request(`${method} ${url}`, params)
@@ -84,11 +105,11 @@ export function guardMutation(req: NextRequest): NextResponse | null {
     contentType: req.headers.get('content-type'),
     allowedOrigin,
   })
-  return result.ok ? null : NextResponse.json({ error: result.error }, { status: 403 })
+  return result.ok ? null : apiError('requestRejected', 403)
 }
 
 export function unauthorized(): NextResponse {
-  return NextResponse.json({ error: 'Your GitHub session has expired. Please sign in again.' }, { status: 401 })
+  return apiError('sessionExpired', 401)
 }
 
 export function errorStatus(error: unknown): number | undefined {
@@ -163,9 +184,67 @@ export async function getReadme(octokit: Octokit, owner: string): Promise<{ text
   }
 }
 
-export async function getOpenedGifts(octokit: Octokit, owner: string): Promise<GiftRow[]> {
+// At most this many of the latest README rows are verified and shown.
+export const HISTORY_LIMIT = 100
+
+export type BoxHistory = {
+  // Rows GitHub can vouch for, oldest first.
+  gifts: VerifiedGift[]
+  // Every Issue the README links to, verified or not; used to hide gifts that were already added.
+  recordedIssueUrls: string[]
+  // Rows that are shown nowhere because they could not be verified.
+  unverifiedCount: number
+  // 'unavailable' when verification could not run (no usable GITHUB_TOKEN); nothing is shown then.
+  status: 'ok' | 'unavailable'
+}
+
+export async function getBoxHistory(octokit: Octokit, owner: string): Promise<BoxHistory> {
   const readme = await getReadme(octokit, owner)
-  return readme ? parseRows(readme.text) : []
+  const rows = readme ? parseRows(readme.text).slice(-HISTORY_LIMIT) : []
+  const recordedIssueUrls = rows.flatMap((row) => (row.issueUrl ? [row.issueUrl] : []))
+  const numbers = Array.from(new Set(rows.flatMap((row) => boxIssueNumber(row.issueUrl, owner) ?? [])))
+  let evidence: Map<number, IssueEvidence>
+  try {
+    evidence = await getIssueEvidence(octokit, owner, numbers)
+  } catch (error) {
+    console.error('Could not verify gift history', error)
+    return { gifts: [], recordedIssueUrls, unverifiedCount: 0, status: 'unavailable' }
+  }
+  const gifts = verifyRows(rows, owner, evidence)
+  return { gifts, recordedIssueUrls, unverifiedCount: rows.length - gifts.length, status: 'ok' }
+}
+
+type GraphqlIssue = { number: number; author: { login: string } | null; editor: { login: string } | null; body: string }
+
+// Author, last editor and body of the given Issues, in one GraphQL request per 50 Issues.
+async function getIssueEvidence(octokit: Octokit, owner: string, numbers: number[]): Promise<Map<number, IssueEvidence>> {
+  const evidence = new Map<number, IssueEvidence>()
+  for (let i = 0; i < numbers.length; i += 50) {
+    const chunk = numbers.slice(i, i + 50)
+    // Numbers come from boxIssueNumber(), so they are plain integers and safe to inline.
+    const fields = chunk.map((n) => `i${n}: issue(number: ${n}) { number author { login } editor { login } body }`)
+    const query = `query ($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { ${fields.join(' ')} } }`
+    let data: { repository: Record<string, GraphqlIssue | null> | null }
+    try {
+      data = await octokit.graphql(query, { owner, name: BOX_REPO })
+    } catch (error) {
+      // A number that is not an Issue (deleted, or a pull request) fails only its own field;
+      // GitHub still returns the other fields as partial data.
+      const partial = (error as { data?: typeof data }).data
+      if (!partial?.repository) throw error
+      data = partial
+    }
+    for (const issue of Object.values(data.repository ?? {})) {
+      if (!issue) continue
+      evidence.set(issue.number, {
+        number: issue.number,
+        author: issue.author?.login ?? null,
+        editor: issue.editor?.login ?? null,
+        body: issue.body,
+      })
+    }
+  }
+  return evidence
 }
 
 export type PendingGift = { number: number; from: string; createdAt: string; htmlUrl: string; message: string }

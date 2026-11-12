@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { apiError } from '@/lib/api-error'
 import { BOX_REPO } from '@/lib/gift'
 import { loadOpenGift, parseIssueNumber } from '@/lib/gift-issue'
 import { errorStatus, guardMutation, unauthorized, viewerFromRequest } from '@/lib/github'
+import { invalidateBox } from '@/lib/public-data'
 
 // Declines a gift: closes its Issue as "not planned" without adding it to the README.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ number: string }> }) {
@@ -11,11 +13,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ num
   if (!viewer) return unauthorized()
 
   const issueNumber = parseIssueNumber((await params).number)
-  if (issueNumber === null) return NextResponse.json({ error: 'Invalid gift.' }, { status: 400 })
+  if (issueNumber === null) return apiError('invalidGift', 400)
 
   try {
     const loaded = await loadOpenGift(viewer, issueNumber, false)
-    if (!loaded.ok) return NextResponse.json({ error: loaded.error }, { status: loaded.status })
+    if (!loaded.ok) return apiError(loaded.code, loaded.status, loaded.params)
 
     await viewer.octokit.rest.issues.update({
       owner: viewer.login,
@@ -24,12 +26,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ num
       state: 'closed',
       state_reason: 'not_planned',
     })
+    invalidateBox(viewer.login)
     return NextResponse.json({ ok: true })
   } catch (error) {
     console.error('Failed to decline gift', error)
     if (errorStatus(error) === 403) {
-      return NextResponse.json({ error: 'Install the GitGift app on your GitGiftBOX first.' }, { status: 403 })
+      return apiError('appNotInstalled', 403)
     }
-    return NextResponse.json({ error: 'Failed to decline the gift.' }, { status: 502 })
+    return apiError('declineFailed', 502)
   }
 }

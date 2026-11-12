@@ -3,6 +3,8 @@
 import type { Viewer } from './github'
 import { errorStatus, getIssueLastEditor } from './github'
 import { BOX_REPO, isGiftIssueBody, parseGiftIssueBody, validateMessage } from './gift'
+import type { ErrorCode } from './api-error'
+import type { Params } from '@/i18n/format'
 
 export type LoadedGift = {
   number: number
@@ -12,7 +14,7 @@ export type LoadedGift = {
   message: string
 }
 
-export type LoadResult = { ok: true; gift: LoadedGift } | { ok: false; status: number; error: string }
+export type LoadResult = { ok: true; gift: LoadedGift } | { ok: false; status: number; code: ErrorCode; params?: Params }
 
 export function parseIssueNumber(raw: string): number | null {
   if (!/^[1-9][0-9]{0,9}$/.test(raw)) return null
@@ -30,15 +32,15 @@ export async function loadOpenGift(viewer: Viewer, issueNumber: number, forOpeni
     ;({ data: issue } = await octokit.rest.issues.get({ owner, repo: BOX_REPO, issue_number: issueNumber }))
   } catch (error) {
     const status = errorStatus(error)
-    if (status === 404) return { ok: false, status: 404, error: 'Gift not found.' }
-    if (status === 403) return { ok: false, status: 403, error: 'Install the GitGift app on your GitGiftBOX first.' }
+    if (status === 404) return { ok: false, status: 404, code: 'giftNotFound' }
+    if (status === 403) return { ok: false, status: 403, code: 'appNotInstalled' }
     throw error
   }
 
   if (issue.pull_request || !issue.user || !isGiftIssueBody(issue.body)) {
-    return { ok: false, status: 400, error: 'This Issue is not a gift.' }
+    return { ok: false, status: 400, code: 'notAGift' }
   }
-  if (issue.state !== 'open') return { ok: false, status: 409, error: 'This gift has already been opened or declined.' }
+  if (issue.state !== 'open') return { ok: false, status: 409, code: 'alreadyHandled' }
 
   const raw = parseGiftIssueBody(issue.body)
   const sender = { login: issue.user.login, id: issue.user.id }
@@ -48,16 +50,12 @@ export async function loadOpenGift(viewer: Viewer, issueNumber: number, forOpeni
 
   const validation = validateMessage(raw ?? '')
   if (!validation.ok || validation.message !== raw) {
-    return { ok: false, status: 422, error: `This gift cannot be added to your box (${validation.ok ? 'malformed' : validation.error}). You can decline it.` }
+    return { ok: false, status: 422, code: 'giftInvalid' }
   }
 
   const editor = await getIssueLastEditor(octokit, owner, issue.number)
   if (editor && editor.toLowerCase() !== sender.login.toLowerCase()) {
-    return {
-      ok: false,
-      status: 409,
-      error: `This gift was edited by @${editor} after @${sender.login} sent it, so it cannot be added under @${sender.login}'s name. You can decline it.`,
-    }
+    return { ok: false, status: 409, code: 'giftEdited', params: { editor, sender: sender.login } }
   }
 
   return {

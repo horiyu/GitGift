@@ -18,7 +18,7 @@ import {
   appInstallUrl,
   errorStatus,
   getBox,
-  getOpenedGifts,
+  getBoxHistory,
   getPendingGifts,
   getBoxConnection,
   publicOctokit,
@@ -77,12 +77,15 @@ export default async function UserPage({ params }: { params: Promise<{ user: str
   const installUrl = appInstallUrl()
   const canReceive = box.exists && box.hasIssues
 
-  const [opened, pending] = box.exists
+  const [history, pending] = box.exists
     ? await Promise.all([
-        getOpenedGifts(octokit, user.login),
+        getBoxHistory(octokit, user.login),
         isThisMe && box.hasIssues ? getPendingGifts(octokit, user.login) : Promise.resolve([]),
       ])
-    : [[], []]
+    : [null, []]
+  // Only rows that trace back to the sender's own Issue are shown.
+  const opened = history?.gifts ?? []
+  const recorded = history?.recordedIssueUrls ?? []
 
   const repoReady = box.exists && box.hasIssues
   const setupSteps = [
@@ -241,7 +244,7 @@ export default async function UserPage({ params }: { params: Promise<{ user: str
           <PendingGifts
             gifts={pending
               // The Issue list can lag behind a just-opened gift; the README is the source of truth.
-              .filter((gift) => !opened.some((row) => row.issueUrl === gift.htmlUrl))
+              .filter((gift) => !recorded.includes(gift.htmlUrl))
               .map(({ number, from, createdAt, message }) => ({ number, from, createdAt, message }))}
           />
         )}

@@ -15,10 +15,12 @@ export function isValidLogin(login: string): boolean {
   return LOGIN_PATTERN.test(login)
 }
 
-export type MessageValidation = { ok: true; message: string } | { ok: false; error: string }
+export type MessageValidation =
+  | { ok: true; message: string }
+  | { ok: false; error: string; code: 'messageType' | 'messageEmpty' | 'messageTooLong' }
 
 export function validateMessage(raw: unknown): MessageValidation {
-  if (typeof raw !== 'string') return { ok: false, error: 'Message must be a string.' }
+  if (typeof raw !== 'string') return { ok: false, error: 'Message must be a string.', code: 'messageType' }
   // Normalise line endings and strip our own markers so that a message cannot break the envelope.
   const message = raw
     .replace(/\r\n?/g, '\n')
@@ -26,9 +28,9 @@ export function validateMessage(raw: unknown): MessageValidation {
     .split(MESSAGE_START).join('')
     .split(MESSAGE_END).join('')
     .trim()
-  if (message.length === 0) return { ok: false, error: 'Message is empty.' }
+  if (message.length === 0) return { ok: false, error: 'Message is empty.', code: 'messageEmpty' }
   if (Array.from(message).length > MAX_MESSAGE_LENGTH) {
-    return { ok: false, error: `Message must be at most ${MAX_MESSAGE_LENGTH} characters.` }
+    return { ok: false, error: `Message must be at most ${MAX_MESSAGE_LENGTH} characters.`, code: 'messageTooLong' }
   }
   return { ok: true, message }
 }
@@ -160,6 +162,19 @@ function splitCells(line: string): string[] {
   return cells.map((c) => c.trim())
 }
 
+// A link to an Issue on some user's GitGiftBOX. Anything else in a README cell is not trusted as a URL.
+const BOX_ISSUE_URL = new RegExp(`^https://github\\.com/([A-Za-z0-9-]{1,39})/${BOX_REPO}/issues/([1-9]\\d{0,9})$`)
+
+// The Issue number when `url` points to an Issue on `owner`'s GitGiftBOX, otherwise null.
+export function boxIssueNumber(url: string | undefined, owner: string): number | null {
+  const match = url?.match(BOX_ISSUE_URL)
+  if (!match || match[1].toLowerCase() !== owner.toLowerCase()) return null
+  return Number(match[2])
+}
+
+// Parses the gift table of a README. The README is written by the box owner, so values are
+// untrusted: rows whose sender is not a valid GitHub login are dropped, and a link is kept only
+// when it points to a GitGiftBOX Issue.
 export function parseRows(readme: string): GiftRow[] {
   const lines = readme.replace(/\r\n?/g, '\n').split('\n')
   const sepIndex = lines.findIndex((line) => SEPARATOR_PATTERN.test(line))
@@ -171,12 +186,48 @@ export function parseRows(readme: string): GiftRow[] {
     const [dateCell, fromCell, ...rest] = cells
     const dateLink = dateCell.match(/^\[([^\]]*)\]\(([^)]+)\)$/)
     const fromLink = fromCell.match(/^\[@?([^\]]+)\]\([^)]*\)$/)
+    const from = (fromLink ? fromLink[1] : fromCell).replace(/^@/, '')
+    if (!isValidLogin(from)) continue
+    const issueUrl = dateLink && BOX_ISSUE_URL.test(dateLink[2]) ? dateLink[2] : undefined
     rows.push({
       date: dateLink ? dateLink[1] : dateCell,
-      issueUrl: dateLink ? dateLink[2] : undefined,
-      from: (fromLink ? fromLink[1] : fromCell).replace(/^@/, ''),
+      issueUrl,
+      from,
       message: unescapeCell(rest.join(' | ')),
     })
   }
   return rows
+}
+
+// ---- Verifying README rows against their Issues --------------------------
+
+// What GitHub records about the Issue a README row links to.
+export type IssueEvidence = {
+  number: number
+  author: string | null
+  // Last editor of the Issue body; null when the body was never edited.
+  editor: string | null
+  body: string | null
+}
+
+export type VerifiedGift = { number: number; issueUrl: string; date: string; from: string; message: string }
+
+// Keeps only rows that GitHub can vouch for: the row links to an Issue on this owner's box,
+// the Issue was written (and, if edited, last edited) by the sender the row names, and the
+// row's message is exactly the message in that Issue. Anything else could have been typed
+// into the README by the box owner and is not shown under someone else's name.
+export function verifyRows(rows: GiftRow[], owner: string, evidence: Map<number, IssueEvidence>): VerifiedGift[] {
+  const seen = new Set<number>()
+  const verified: VerifiedGift[] = []
+  for (const row of rows) {
+    const number = boxIssueNumber(row.issueUrl, owner)
+    if (number === null || seen.has(number)) continue
+    const issue = evidence.get(number)
+    if (!issue?.author || issue.author.toLowerCase() !== row.from.toLowerCase()) continue
+    if (issue.editor && issue.editor.toLowerCase() !== issue.author.toLowerCase()) continue
+    if (parseGiftIssueBody(issue.body) !== row.message) continue
+    seen.add(number)
+    verified.push({ number, issueUrl: row.issueUrl!, date: row.date, from: issue.author, message: row.message })
+  }
+  return verified
 }

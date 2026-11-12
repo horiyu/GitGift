@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { apiError } from '@/lib/api-error'
 import { BOX_REPO, appendRow, hasRowForIssue } from '@/lib/gift'
 import { loadOpenGift, parseIssueNumber } from '@/lib/gift-issue'
 import { errorStatus, getReadme, guardMutation, noreplyEmail, unauthorized, viewerFromRequest } from '@/lib/github'
+import { invalidateBox } from '@/lib/public-data'
 
 // Opens a gift: the box owner appends the message to README.md as a commit authored
 // by the sender, then closes the Issue the gift was wrapped in.
@@ -12,12 +14,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ num
   if (!viewer) return unauthorized()
 
   const issueNumber = parseIssueNumber((await params).number)
-  if (issueNumber === null) return NextResponse.json({ error: 'Invalid gift.' }, { status: 400 })
+  if (issueNumber === null) return apiError('invalidGift', 400)
 
   const { octokit, login: owner } = viewer
   try {
     const loaded = await loadOpenGift(viewer, issueNumber, true)
-    if (!loaded.ok) return NextResponse.json({ error: loaded.error }, { status: loaded.status })
+    if (!loaded.ok) return apiError(loaded.code, loaded.status, loaded.params)
     const { gift } = loaded
 
     for (let attempt = 0; ; attempt++) {
@@ -56,12 +58,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ num
       state: 'closed',
       state_reason: 'completed',
     })
+    invalidateBox(owner)
     return NextResponse.json({ ok: true })
   } catch (error) {
     console.error('Failed to open gift', error)
     if (errorStatus(error) === 403) {
-      return NextResponse.json({ error: 'Install the GitGift app on your GitGiftBOX first.' }, { status: 403 })
+      return apiError('appNotInstalled', 403)
     }
-    return NextResponse.json({ error: 'Failed to open the gift.' }, { status: 502 })
+    return apiError('openFailed', 502)
   }
 }

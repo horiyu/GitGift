@@ -15,6 +15,11 @@
   .composerWrap:has(.composerAvatar) > .result {
     grid-column: 2;
   }
+
+  /* Spans both columns, so the avatar still lines up with the composer below it. */
+  .composerWrap:has(.composerAvatar) > .restored {
+    grid-column: 1 / -1;
+  }
 }
 
 .composerAvatar {
@@ -222,9 +227,9 @@
   gap: 8px;
 }
 
-/* Share link */
+/* Share buttons */
 
-.share {
+.shareButtons {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -232,9 +237,40 @@
   margin-top: 8px;
 }
 
+.shareRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
 .shareStart {
   align-items: flex-start;
   margin-top: 0;
+}
+
+.shareStart .shareRow {
+  justify-content: flex-start;
+}
+
+/* Composer footer */
+
+.footerStatus {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.savedNote {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.footerActions {
+  display: inline-flex;
+  gap: 8px;
 }
 
 .copied {

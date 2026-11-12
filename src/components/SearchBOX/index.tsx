@@ -4,12 +4,14 @@ import { FormEvent, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PersonIcon, SearchIcon } from '@primer/octicons-react'
 import { isValidLogin } from '@/lib/gift'
+import { useI18n } from '@/i18n/client'
 import styles from './searchbox.module.css'
 
 // Looks up a GitHub user and moves to their GitGift page.
 // "hero" is the large field on the landing page; "compact" sits in the header and focuses on "/".
 export default function SearchBOX({ variant = 'hero' }: { variant?: 'hero' | 'compact' }) {
   const router = useRouter()
+  const { t } = useI18n()
   const inputRef = useRef<HTMLInputElement>(null)
   const [query, setQuery] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -31,7 +33,7 @@ export default function SearchBOX({ variant = 'hero' }: { variant?: 'hero' | 'co
     event.preventDefault()
     const login = query.trim().replace(/^@/, '')
     if (!isValidLogin(login)) {
-      setError('Enter a valid GitHub username.')
+      setError(t('search.invalid'))
       return
     }
     setError(null)
@@ -48,13 +50,13 @@ export default function SearchBOX({ variant = 'hero' }: { variant?: 'hero' | 'co
           ref={inputRef}
           className={`form-control ${styles.compactInput} ${error ? styles.invalid : ''}`}
           type="text"
-          placeholder="Find a GitHub user"
+          placeholder={t('search.compactPlaceholder')}
           value={query}
           onChange={(event) => {
             setQuery(event.target.value)
             setError(null)
           }}
-          aria-label="Find a GitHub user"
+          aria-label={t('search.compactPlaceholder')}
           aria-invalid={!!error}
           title={error ?? undefined}
           autoComplete="off"
@@ -76,20 +78,20 @@ export default function SearchBOX({ variant = 'hero' }: { variant?: 'hero' | 'co
             ref={inputRef}
             className={`form-control ${styles.heroInput}`}
             type="text"
-            placeholder="GitHub username of the person you want to thank"
+            placeholder={t('search.heroPlaceholder')}
             value={query}
             onChange={(event) => {
               setQuery(event.target.value)
               setError(null)
             }}
-            aria-label="GitHub username"
+            aria-label={t('search.heroLabel')}
             aria-invalid={!!error}
             autoComplete="off"
             spellCheck={false}
           />
         </div>
         <button type="submit" className="btn btn-primary btn-large">
-          Find their box
+          {t('search.submit')}
         </button>
       </form>
       {error && <p className={styles.error}>{error}</p>}

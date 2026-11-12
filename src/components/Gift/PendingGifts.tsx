@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { CheckCircleIcon, GiftIcon, IssueOpenedIcon, StopIcon, XIcon } from '@primer/octicons-react'
+import { useI18n } from '@/i18n/client'
+import { rich } from '@/i18n/rich'
 import { useGiftAction } from './useGiftAction'
 import styles from './gift.module.css'
 
@@ -12,6 +14,7 @@ type Outcome = 'open' | 'decline'
 // Unopened gifts. Unwrapping shows the message first; the owner then decides whether to add it
 // to their public README (a commit under the sender's name) or to decline it.
 export default function PendingGifts({ gifts }: { gifts: Pending[] }) {
+  const { t, date } = useI18n()
   const { state, run } = useGiftAction()
   const [unwrapped, setUnwrapped] = useState<number | null>(null)
   const [busy, setBusy] = useState<{ number: number; action: Outcome } | null>(null)
@@ -37,9 +40,7 @@ export default function PendingGifts({ gifts }: { gifts: Pending[] }) {
       {added.map((gift) => (
         <div key={gift.number} className="flash flash-success">
           <CheckCircleIcon size={16} />
-          <p>
-            Added the gift from <b>@{gift.from}</b> to your box. It may take a moment to appear in the list below.
-          </p>
+          <p>{rich(t('pending.added', { from: gift.from }), { b: (chunk) => <b>{chunk}</b> })}</p>
         </div>
       ))}
 
@@ -47,7 +48,7 @@ export default function PendingGifts({ gifts }: { gifts: Pending[] }) {
         <section className={`box ${styles.pendingBox}`} aria-labelledby="pending">
           <div className="box-header">
             <h2 id="pending" className="box-title">
-              <GiftIcon size={16} className={styles.giftAccent} /> Unopened gifts
+              <GiftIcon size={16} className={styles.giftAccent} /> {t('pending.title')}
             </h2>
             <span className="counter">{visible.length}</span>
           </div>
@@ -60,12 +61,15 @@ export default function PendingGifts({ gifts }: { gifts: Pending[] }) {
                   <div className={styles.pendingHeader}>
                     <IssueOpenedIcon size={16} className={styles.openIcon} />
                     <div className={styles.pendingMeta}>
-                      <p className={styles.pendingTitle}>A gift from @{gift.from}</p>
+                      <p className={styles.pendingTitle}>{t('pending.itemTitle', { from: gift.from })}</p>
                       <p className="text-muted text-small">
-                        #{gift.number} opened on {gift.createdAt.slice(0, 10)} by{' '}
-                        <a href={`https://github.com/${gift.from}`} target="_blank" rel="noreferrer">
-                          {gift.from}
-                        </a>
+                        {rich(t('pending.meta', { number: gift.number, date: date(gift.createdAt), from: gift.from }), {
+                          link: (chunk) => (
+                            <a href={`https://github.com/${gift.from}`} target="_blank" rel="noreferrer">
+                              {chunk}
+                            </a>
+                          ),
+                        })}
                       </p>
                     </div>
                     {isOpen ? (
@@ -73,7 +77,7 @@ export default function PendingGifts({ gifts }: { gifts: Pending[] }) {
                         type="button"
                         className={`btn ${styles.iconOnly}`}
                         onClick={() => setUnwrapped(null)}
-                        aria-label="Wrap it back up"
+                        aria-label={t('pending.wrapBack')}
                         disabled={busy !== null}
                       >
                         <XIcon size={16} />
@@ -85,7 +89,7 @@ export default function PendingGifts({ gifts }: { gifts: Pending[] }) {
                         onClick={() => setUnwrapped(gift.number)}
                         disabled={busy !== null}
                       >
-                        <GiftIcon size={16} /> Unwrap
+                        <GiftIcon size={16} /> {t('pending.unwrap')}
                       </button>
                     )}
                   </div>
@@ -103,9 +107,7 @@ export default function PendingGifts({ gifts }: { gifts: Pending[] }) {
                         />
                         <p className={styles.letterText}>{gift.message}</p>
                       </div>
-                      <p className="text-muted text-small">
-                        Adding it commits this message to your public README with @{gift.from} as the author.
-                      </p>
+                      <p className="text-muted text-small">{t('pending.commitNote', { from: gift.from })}</p>
                       <div className={styles.actions}>
                         <button
                           type="button"
@@ -113,7 +115,7 @@ export default function PendingGifts({ gifts }: { gifts: Pending[] }) {
                           onClick={() => act(gift.number, 'decline')}
                           disabled={busy !== null}
                         >
-                          {isBusy && busy?.action === 'decline' ? 'Declining…' : 'Decline'}
+                          {isBusy && busy?.action === 'decline' ? t('pending.declining') : t('pending.decline')}
                         </button>
                         <button
                           type="button"
@@ -121,7 +123,7 @@ export default function PendingGifts({ gifts }: { gifts: Pending[] }) {
                           onClick={() => act(gift.number, 'open')}
                           disabled={busy !== null}
                         >
-                          {isBusy && busy?.action === 'open' ? 'Committing…' : 'Add to my box'}
+                          {isBusy && busy?.action === 'open' ? t('pending.adding') : t('pending.add')}
                         </button>
                       </div>
                     </div>

@@ -278,3 +278,18 @@
   text-decoration: none;
   color: var(--fg-accent);
 }
+
+.shareBox {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding: 16px;
+}
+
+.shareBoxText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}

@@ -125,6 +125,11 @@ body {
   flex-direction: column;
 }
 
+/* Japanese has no spaces between words; break lines at phrase boundaries (Chrome 119+, ignored elsewhere). */
+:lang(ja) {
+  word-break: auto-phrase;
+}
+
 a {
   color: var(--fg-accent);
   text-decoration: none;

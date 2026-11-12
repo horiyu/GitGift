@@ -1,6 +1,7 @@
 // GitGift's glyph: GitHub's git-commit icon whose node is a wrapped present
 // (lid, box, ribbon and bow), i.e. "a gift committed to Git".
 // Plain SVG with explicit attributes so it renders both in the app and in next/og (Satori).
+// app/icon.svg repeats these paths, because a static icon file cannot import them.
 
 const PATHS = [
   // Commit line on either side of the node.
@@ -13,11 +14,20 @@ const PATHS = [
   'M12 8.5c-1.84-3.8-6.04-4.72-6.04-2.19 0 1.84 3.16 2.19 6.04 2.19M12 8.5c1.84-3.8 6.04-4.72 6.04-2.19 0 1.84-3.16 2.19-6.04 2.19',
 ]
 
-export default function Mark({ size, color = 'currentColor' }: { size: number; color?: string }) {
+export default function Mark({
+  size,
+  color = 'currentColor',
+  strokeWidth = 1.75,
+}: {
+  size: number
+  color?: string
+  // Favicons use a heavier stroke so the glyph survives 16px.
+  strokeWidth?: number
+}) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       {PATHS.map((d) => (
-        <path key={d} d={d} stroke={color} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" />
+        <path key={d} d={d} stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
       ))}
     </svg>
   )

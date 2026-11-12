@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { CheckCircleIcon, GiftIcon, IssueOpenedIcon, StopIcon, XIcon } from '@primer/octicons-react'
 import { useGiftAction } from './useGiftAction'
 import styles from './gift.module.css'
 
@@ -13,7 +14,7 @@ type Outcome = 'open' | 'decline'
 export default function PendingGifts({ gifts }: { gifts: Pending[] }) {
   const { state, run } = useGiftAction()
   const [unwrapped, setUnwrapped] = useState<number | null>(null)
-  const [busy, setBusy] = useState<number | null>(null)
+  const [busy, setBusy] = useState<{ number: number; action: Outcome } | null>(null)
   // GitHub's Issue list and README reads lag behind a just-made change, so the outcome is
   // tracked locally instead of waiting for the refreshed server data.
   const [outcomes, setOutcomes] = useState<Record<number, Outcome>>({})
@@ -23,7 +24,7 @@ export default function PendingGifts({ gifts }: { gifts: Pending[] }) {
   if (visible.length === 0 && added.length === 0) return null
 
   const act = async (number: number, action: Outcome) => {
-    setBusy(number)
+    setBusy({ number, action })
     if (await run(`/api/gifts/${number}/${action}`)) {
       setOutcomes((prev) => ({ ...prev, [number]: action }))
       setUnwrapped(null)
@@ -32,58 +33,112 @@ export default function PendingGifts({ gifts }: { gifts: Pending[] }) {
   }
 
   return (
-    <section className={styles.section}>
-      {added.length > 0 && (
-        <ul className={styles.list}>
-          {added.map((gift) => (
-            <li key={gift.number} className={styles.card}>
-              <p className={styles.notice}>✓ Added to your box from @{gift.from}.</p>
-              <p className={styles.date}>It may take a moment to appear in the list below.</p>
-            </li>
-          ))}
-        </ul>
-      )}
+    <>
+      {added.map((gift) => (
+        <div key={gift.number} className="flash flash-success">
+          <CheckCircleIcon size={16} />
+          <p>
+            Added the gift from <b>@{gift.from}</b> to your box. It may take a moment to appear in the list below.
+          </p>
+        </div>
+      ))}
+
       {visible.length > 0 && (
-        <>
-          <h2 className={added.length > 0 ? styles.spaced : undefined}>
-            🎁 {visible.length} unopened {visible.length === 1 ? 'gift' : 'gifts'}
-          </h2>
+        <section className={`box ${styles.pendingBox}`} aria-labelledby="pending">
+          <div className="box-header">
+            <h2 id="pending" className="box-title">
+              <GiftIcon size={16} className={styles.giftAccent} /> Unopened gifts
+            </h2>
+            <span className="counter">{visible.length}</span>
+          </div>
           <ul className={styles.list}>
-            {visible.map((gift) => (
-              <li key={gift.number} className={styles.pending}>
-                <div className={styles.pendingHeader}>
-                  <span>
-                    From <a href={`https://github.com/${gift.from}`}>@{gift.from}</a>
-                    <span className={styles.date}> · {gift.createdAt.slice(0, 10)}</span>
-                  </span>
-                  {unwrapped !== gift.number && (
-                    <button className={styles.primary} onClick={() => setUnwrapped(gift.number)} disabled={busy !== null}>
-                      Unwrap
-                    </button>
-                  )}
-                </div>
-                {unwrapped === gift.number && (
-                  <div className={styles.unwrapped}>
-                    <p className={styles.cardMessage}>{gift.message}</p>
-                    <p className={styles.date}>
-                      Adding it commits this message to your public README under @{gift.from}&apos;s name.
-                    </p>
-                    <div className={styles.actions}>
-                      <button className={styles.secondary} onClick={() => act(gift.number, 'decline')} disabled={busy !== null}>
-                        {busy === gift.number ? '...' : 'Decline'}
-                      </button>
-                      <button className={styles.primary} onClick={() => act(gift.number, 'open')} disabled={busy !== null}>
-                        {busy === gift.number ? '...' : 'Add to my box'}
-                      </button>
+            {visible.map((gift) => {
+              const isOpen = unwrapped === gift.number
+              const isBusy = busy?.number === gift.number
+              return (
+                <li key={gift.number} className={`box-row ${styles.pendingRow}`}>
+                  <div className={styles.pendingHeader}>
+                    <IssueOpenedIcon size={16} className={styles.openIcon} />
+                    <div className={styles.pendingMeta}>
+                      <p className={styles.pendingTitle}>A gift from @{gift.from}</p>
+                      <p className="text-muted text-small">
+                        #{gift.number} opened on {gift.createdAt.slice(0, 10)} by{' '}
+                        <a href={`https://github.com/${gift.from}`} target="_blank" rel="noreferrer">
+                          {gift.from}
+                        </a>
+                      </p>
                     </div>
+                    {isOpen ? (
+                      <button
+                        type="button"
+                        className={`btn ${styles.iconOnly}`}
+                        onClick={() => setUnwrapped(null)}
+                        aria-label="Wrap it back up"
+                        disabled={busy !== null}
+                      >
+                        <XIcon size={16} />
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() => setUnwrapped(gift.number)}
+                        disabled={busy !== null}
+                      >
+                        <GiftIcon size={16} /> Unwrap
+                      </button>
+                    )}
                   </div>
-                )}
-              </li>
-            ))}
+
+                  {isOpen && (
+                    <div className={styles.unwrapped}>
+                      <div className={styles.letter}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          className="avatar"
+                          src={`https://github.com/${gift.from}.png?size=48`}
+                          alt={gift.from}
+                          width={24}
+                          height={24}
+                        />
+                        <p className={styles.letterText}>{gift.message}</p>
+                      </div>
+                      <p className="text-muted text-small">
+                        Adding it commits this message to your public README with @{gift.from} as the author.
+                      </p>
+                      <div className={styles.actions}>
+                        <button
+                          type="button"
+                          className="btn btn-danger"
+                          onClick={() => act(gift.number, 'decline')}
+                          disabled={busy !== null}
+                        >
+                          {isBusy && busy?.action === 'decline' ? 'Declining…' : 'Decline'}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          onClick={() => act(gift.number, 'open')}
+                          disabled={busy !== null}
+                        >
+                          {isBusy && busy?.action === 'open' ? 'Committing…' : 'Add to my box'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </li>
+              )
+            })}
           </ul>
-        </>
+        </section>
       )}
-      {state.status === 'error' && <p className={styles.error}>{state.message}</p>}
-    </section>
+
+      {state.status === 'error' && (
+        <div className="flash flash-error">
+          <StopIcon size={16} />
+          <p>{state.message}</p>
+        </div>
+      )}
+    </>
   )
 }

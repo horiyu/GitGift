@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import { CheckIcon, CopyIcon } from '@primer/octicons-react'
 import styles from './gift.module.css'
 
 // GitGift never notifies someone who has not set up a box, so the sender passes the link on
 // themselves. The page at this link shows its owner how to set up their GitGiftBOX.
-export default function ShareBoxLink({ to }: { to: string }) {
+export default function ShareBoxLink({ to, align = 'center' }: { to: string; align?: 'center' | 'start' }) {
   const [copied, setCopied] = useState<'idle' | 'copied' | 'manual'>('idle')
   const [url, setUrl] = useState('')
 
@@ -22,16 +23,17 @@ export default function ShareBoxLink({ to }: { to: string }) {
   }
 
   return (
-    <div className={styles.share}>
-      <p className={styles.date}>
-        Want to send @{to} a gift? Share this page with them; it shows them how to set up a box.
+    <div className={`${styles.share} ${align === 'start' ? styles.shareStart : ''}`}>
+      <p className="text-muted text-small">
+        Share this page with @{to}; it walks them through setting up a box.
       </p>
-      <button type="button" className={styles.secondary} onClick={copy}>
-        {copied === 'copied' ? '✓ Link copied' : `Copy link to @${to}'s page`}
+      <button type="button" className="btn" onClick={copy}>
+        {copied === 'copied' ? <CheckIcon size={16} className={styles.copied} /> : <CopyIcon size={16} />}
+        {copied === 'copied' ? 'Link copied' : `Copy link to @${to}'s page`}
       </button>
       {copied === 'manual' && (
         <input
-          className={styles.shareInput}
+          className={`form-control ${styles.shareInput}`}
           readOnly
           value={url}
           aria-label={`Link to @${to}'s page`}

@@ -1,12 +1,30 @@
 'use client'
 
 import { signIn, signOut } from 'next-auth/react'
-import OutlinedButton from './Outlined'
+import { MarkGithubIcon } from '@primer/octicons-react'
 
-export function SignInButton({ children = 'Sign in' }: { children?: React.ReactNode }) {
-  return <OutlinedButton onClick={() => signIn('github')}>{children}</OutlinedButton>
+type ButtonProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'onClick'>
+
+export function SignInButton({
+  children = 'Sign in with GitHub',
+  primary = false,
+  large = false,
+  className,
+  ...props
+}: ButtonProps & { primary?: boolean; large?: boolean }) {
+  const classes = ['btn', primary && 'btn-primary', large && 'btn-large', className].filter(Boolean).join(' ')
+  return (
+    <button type="button" className={classes} onClick={() => signIn('github')} {...props}>
+      <MarkGithubIcon size={16} />
+      {children}
+    </button>
+  )
 }
 
-export function SignOutButton() {
-  return <OutlinedButton onClick={() => signOut({ callbackUrl: '/' })}>Sign Out</OutlinedButton>
+export function SignOutButton({ children = 'Sign out', className, ...props }: ButtonProps) {
+  return (
+    <button type="button" className={`btn ${className ?? ''}`} onClick={() => signOut({ callbackUrl: '/' })} {...props}>
+      {children}
+    </button>
+  )
 }

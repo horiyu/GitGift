@@ -1,14 +1,90 @@
 .header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  height: 100px;
-  margin-left: 20%;
-  margin-right: 20%;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--border-default);
 }
 
-.icon {
-  border-radius: 50%;
-  border-width: thin;
-  box-shadow: 0 0 0 1px rgba(31, 35, 40, 0.15);
+.inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: 1280px;
+  height: 64px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+@media (min-width: 768px) {
+  .inner {
+    padding: 0 24px;
+  }
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fg-default);
+}
+
+.brand:hover {
+  text-decoration: none;
+  color: var(--fg-muted);
+}
+
+.search {
+  flex: 1;
+  max-width: 340px;
+  margin-left: auto;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.search + .actions {
+  margin-left: 0;
+}
+
+.me {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px 0 0;
+  border-radius: 2em;
+  color: var(--fg-default);
+  font-weight: 500;
+}
+
+.me:hover {
+  text-decoration: none;
+  background: var(--bg-neutral-muted);
+}
+
+.meLabel {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .meLabel {
+    display: inline;
+  }
+}
+
+.iconButton {
+  width: 32px;
+  padding: 0;
+}
+
+@media (max-width: 543px) {
+  .search {
+    display: none;
+  }
 }

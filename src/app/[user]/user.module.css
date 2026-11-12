@@ -1,33 +1,280 @@
-.main {
-  text-align: center;
-  padding-top: 50px;
+.layout {
+  display: grid;
+  gap: 24px;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px 16px 0;
+}
+
+@media (min-width: 768px) {
+  .layout {
+    grid-template-columns: 256px minmax(0, 1fr);
+    padding: 32px 24px 0;
+  }
+}
+
+@media (min-width: 1012px) {
+  .layout {
+    grid-template-columns: 296px minmax(0, 1fr);
+    gap: 32px;
+  }
+}
+
+/* Sidebar, modelled on a GitHub profile. */
+
+.sidebar {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  gap: 16px;
 }
 
-.profile {
-  margin-bottom: 30px;
+.avatar {
+  width: 100%;
+  height: auto;
+  max-width: 296px;
+  aspect-ratio: 1;
 }
 
-.icon {
-  border-radius: 50%;
-  border-width: thin;
-  box-shadow: 0 0 0 1px rgba(31, 35, 40, 0.15);
+.names {
+  display: flex;
+  flex-direction: column;
+}
+
+.name {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.25;
 }
 
 .login {
-  color: #59636e;
-  margin-top: 4px;
+  font-size: 20px;
+  font-weight: 300;
+  line-height: 24px;
+  color: var(--fg-muted);
 }
 
-.signIn {
+.bio {
+  font-size: 16px;
+}
+
+.sideActions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stats {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--fg-muted);
+}
+
+.stats li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stats b {
+  color: var(--fg-default);
+}
+
+.ok {
+  color: var(--fg-success);
+  flex-shrink: 0;
+}
+
+.closed {
+  color: var(--fg-done);
+}
+
+@media (max-width: 767px) {
+  .sidebar {
+    display: grid;
+    grid-template-columns: 72px 1fr;
+    column-gap: 16px;
+    row-gap: 12px;
+    align-items: center;
+  }
+
+  .avatar {
+    width: 72px;
+  }
+
+  .bio,
+  .sideActions,
+  .stats {
+    grid-column: 1 / -1;
+  }
+
+  .sideActions {
+    flex-direction: row;
+  }
+}
+
+/* Main column. */
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+
+.flashBody {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 1;
+}
+
+.blankslate {
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 8px;
+  padding: 40px 24px;
+  text-align: center;
+}
+
+.blankslate h2 {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.blankslate > p {
+  max-width: 480px;
+}
+
+.blankIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 8px;
+  border-radius: 50%;
+  color: var(--fg-done);
+  background: var(--bg-done-muted);
+}
+
+.ownerHint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.inlineSignIn {
+  height: 28px;
+  font-size: 12px;
+}
+
+.setup {
+  list-style: none;
+}
+
+.setupRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.setupText {
+  flex: 1;
+  min-width: 0;
+}
+
+.setupTitle {
+  font-weight: 600;
+}
+
+.doneTitle {
+  color: var(--fg-muted);
+  text-decoration: line-through;
+}
+
+.stepNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--border-default);
+  border-radius: 50%;
+  color: var(--fg-muted);
+}
+
+.setupFooter {
+  padding: 8px 16px;
+  border-top: 1px solid var(--border-muted);
+  background: var(--bg-muted);
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+@media (max-width: 543px) {
+  .setupRow {
+    flex-wrap: wrap;
+  }
+}
+
+.repoLink {
+  color: var(--fg-default);
+}
+
+.emptyRow {
+  padding: 32px 16px;
+  text-align: center;
+}
+
+.timeline {
+  list-style: none;
+}
+
+.gift {
+  display: flex;
+  align-items: flex-start;
   gap: 12px;
 }
 
-.signOut {
-  margin: 40px 0;
+.gift:hover {
+  background: var(--bg-muted);
+}
+
+.gift:last-child {
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+.giftAvatar {
+  flex-shrink: 0;
+}
+
+.giftBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.giftMessage {
+  margin-bottom: 4px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.author {
+  font-weight: 600;
+  color: var(--fg-default);
+}
+
+.gift .label:hover {
+  text-decoration: none;
+  color: var(--fg-accent);
 }

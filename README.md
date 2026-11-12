@@ -91,4 +91,6 @@ The interface is available in English, Japanese, Simplified Chinese, Korean, Spa
 
 ## Deployment
 
-The app relies on NextAuth and Route Handlers, so it needs a Node.js server (e.g. Vercel). The GitHub Pages workflow in `.github/workflows/nextjs.yml` performs a static export and cannot serve these routes.
+The app relies on NextAuth and Route Handlers, so it needs a Node.js server; it is deployed to Vercel. A static host such as GitHub Pages cannot serve these routes.
+
+Set `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `GITHUB_ID`, `GITHUB_SECRET`, `GITHUB_APP_SLUG` and `GITHUB_TOKEN` in the Vercel project, and add `<NEXTAUTH_URL>/api/auth/callback/github` as a callback URL of the GitHub App.

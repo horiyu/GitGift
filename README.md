@@ -26,6 +26,24 @@ Gifts are public, because both the Issue and the README live in a public reposit
 
 A gift can only be sent to a user whose box is ready: the repository exists, its Issues are enabled, and the app is installed on it. GitGift does not notify users who have not set up a box, because doing so would require writing to their account unasked. Instead, the sender can copy a link to the recipient's GitGift page and pass it on; that page shows its owner how to set up the box.
 
+## Sharing and drafts
+
+GitGift never contacts anyone by itself. Instead:
+
+- **Invitations.** When a recipient has no box yet, the sender can share the recipient's GitGift page on X, through the system share sheet, or by copying the link. The page shows its owner how to set up a box. Post text never contains `@login`, because a GitHub username can belong to someone else on X.
+- **Drafts.** A message written to someone who cannot receive gifts yet is saved only in the sender's browser (`localStorage`), never on the server. When the sender returns after the recipient has set up a box, the message is restored and can be sent.
+- **Share your box.** Owners can share their own page in the same ways.
+- **Link previews.** Every page has Open Graph and Twitter card metadata. `src/app/opengraph-image.tsx` and `src/app/[user]/opengraph-image.tsx` render 1200×630 images laid out like GitHub's repository cards (a `<login>/GitGiftBOX` title, the user's avatar and gift count) in Mona Sans, GitHub's open-source typeface (SIL OFL 1.1, from `@fontsource/mona-sans`), using the same cached data as the pages.
+
+## Languages
+
+The interface is available in English, Japanese, Simplified Chinese, Korean, Spanish, Brazilian Portuguese, French and German. The language is chosen from the `gitgift-locale` cookie (set by the selector in the footer) or, failing that, the browser's `Accept-Language` header. It is not part of the URL, because the first path segment is a GitHub username.
+
+- Messages live in `src/i18n/messages/<locale>.ts`. English (`en.ts`) is the reference; TypeScript requires every other locale to define exactly the same keys, and `tests/i18n.test.ts` checks that each translation keeps the same `{placeholders}` and `<tags>`.
+- API routes return an error `code` (and `params`) alongside the English `error` text, and the browser shows the message in the user's language.
+- Content written to GitHub (Issue titles and bodies, README tables, commit messages) and the Open Graph images stay in English, because their readers' language is unknown.
+- To add a language, add it to `LOCALES` in `src/i18n/config.ts`, create its message file, and register it in `src/i18n/messages/index.ts` (and in the test).
+
 ## Security model
 
 | Concern | Mitigation |
@@ -38,7 +56,11 @@ A gift can only be sent to a user whose box is ready: the repository exists, its
 | Attribution of edited content | Repository owners can edit any Issue in their repository. A gift whose body was last edited by someone other than its author is refused, so text is never committed under a sender's name that they did not write. Git commit authorship is not cryptographically verified in general; the Issue and its edit history are the evidence. |
 | Gifts that bypass GitGift | Gift Issues can be created directly on GitHub. Adding a gift therefore re-applies the message validation used on send, and the recipient always reads the message before committing it. |
 | Mentions and references | The message is placed in a code block in the Issue, so `@user`, `#123` and URLs do not notify or cross-reference third parties. |
+| Forged gift history | The README is written by the box owner, who could type in a row naming anyone. GitGift therefore shows a README row only if it links to an Issue on that box, the Issue was written (and, if edited, last edited) by the user the row names, and the row's message equals the message in the Issue. Other rows are hidden, and the owner is told how many. See `verifyRows` in `src/lib/gift.ts`. |
+| Untrusted README values | Rows whose sender is not a valid GitHub login are ignored, and a link is used only if it is a `https://github.com/<user>/GitGiftBOX/issues/<n>` URL, so README content cannot inject links such as `javascript:` or `//other.site`. |
 | Markup injection | React renders messages as text. README cells escape `&`, `<`, `>`, `\|`, backslashes and newlines; GitHub sanitises the rendered README. |
+| Rate-limit exhaustion | Public profile data (user, box and verified history) is cached for 60 seconds per user (`src/lib/public-data.ts`), so reloading pages does not consume the server's GitHub quota. Adding or declining a gift invalidates the owner's cache. A rejected `GITHUB_TOKEN` is retried after five minutes. |
+| Framing and browser hardening | Every response sets `X-Frame-Options: DENY`, `Content-Security-Policy: frame-ancestors 'none'` (plus `base-uri`, `object-src` and `form-action` restrictions), `X-Content-Type-Options: nosniff`, `Referrer-Policy` and `Permissions-Policy` (`next.config.js`). |
 | Abuse | Recipients can decline gifts and can block users on GitHub, which prevents them from opening Issues in the recipient's repositories. |
 
 ## Setup
@@ -58,7 +80,7 @@ A gift can only be sent to a user whose box is ready: the repository exists, its
    | `NEXTAUTH_SECRET` | yes | Secret that encrypts the session cookie. Use at least 32 random bytes, e.g. `openssl rand -base64 32`. |
    | `GITHUB_ID` / `GITHUB_SECRET` | yes | Client ID and client secret of the GitHub App. |
    | `GITHUB_APP_SLUG` | yes | The app's slug, as in `https://github.com/apps/<slug>`. |
-   | `GITHUB_TOKEN` | no | Server-only token for public reads. It only raises the API rate limit; an invalid token falls back to unauthenticated requests. |
+   | `GITHUB_TOKEN` | in production | Server-only token for public reads. Use a fine-grained token with access to public repositories only (read-only) and no other permissions. It raises the API rate limit from 60 to 5,000 requests per hour and is required to verify gift history, because GitHub's GraphQL API does not accept unauthenticated requests. Without it, gift history is not shown. |
 
 3. Run `npm install`, then `npm run dev`.
 

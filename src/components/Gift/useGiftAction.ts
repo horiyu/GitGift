@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-type State = { status: 'idle' | 'pending' | 'done' | 'error'; message?: string; url?: string }
+type State = { status: 'idle' | 'pending' | 'done' | 'error'; message?: string; code?: string; url?: string }
 
 // POSTs JSON to a GitGift API route and refreshes the server-rendered page on success.
 // The API routes require application/json and a same-origin request (CSRF defence).
@@ -19,9 +19,9 @@ export function useGiftAction() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      const data: { error?: string; url?: string } = await res.json().catch(() => ({}))
+      const data: { error?: string; code?: string; url?: string } = await res.json().catch(() => ({}))
       if (!res.ok || data.error) {
-        setState({ status: 'error', message: data.error ?? `Request failed (${res.status}).` })
+        setState({ status: 'error', message: data.error ?? `Request failed (${res.status}).`, code: data.code })
         return false
       }
       setState({ status: 'done', url: data.url })

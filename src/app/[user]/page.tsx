@@ -17,6 +17,7 @@ import {
 import { SignInButton, SignOutButton } from '@/components/Button/AuthButtons'
 import PendingGifts from '@/components/Gift/PendingGifts'
 import SendGiftForm from '@/components/Gift/SendGiftForm'
+import ShareBoxLink from '@/components/Gift/ShareBoxLink'
 import giftStyles from '@/components/Gift/gift.module.css'
 import styles from './user.module.css'
 
@@ -60,6 +61,7 @@ export default async function UserPage({ params }: { params: Promise<{ user: str
   const connected = connection === 'connected'
   const needsReauth = sessionExpired || connection === 'reauth'
   const installUrl = appInstallUrl()
+  const canReceive = box.exists && box.hasIssues
 
   const [opened, pending] = box.exists
     ? await Promise.all([
@@ -86,10 +88,27 @@ export default async function UserPage({ params }: { params: Promise<{ user: str
         </div>
       )}
 
-      {!box.exists && !isThisMe && (
-        <p>
-          <b>{name}</b> doesn&apos;t have a GitGiftBOX yet.
-        </p>
+      {!canReceive && !isThisMe && (
+        <section className={giftStyles.section}>
+          <p>
+            {box.exists ? (
+              <>
+                <b>{name}</b>&apos;s GitGiftBOX can&apos;t receive gifts yet (Issues are turned off).
+              </>
+            ) : (
+              <>
+                <b>{name}</b> doesn&apos;t have a GitGiftBOX yet.
+              </>
+            )}
+          </p>
+          <ShareBoxLink to={user.login} />
+          {!viewerLogin && (
+            <div className={`${styles.signIn} ${giftStyles.spaced}`}>
+              <p className={giftStyles.date}>Are you @{user.login}? Sign in to set up your box.</p>
+              <SignInButton />
+            </div>
+          )}
+        </section>
       )}
 
       {isThisMe && !needsReauth && (!box.exists || !box.hasIssues || !connected) && (
@@ -136,7 +155,7 @@ export default async function UserPage({ params }: { params: Promise<{ user: str
         </section>
       )}
 
-      {box.exists && box.hasIssues && !isThisMe && !needsReauth && (
+      {canReceive && !isThisMe && !needsReauth && (
         viewerLogin ? (
           <SendGiftForm to={user.login} />
         ) : (

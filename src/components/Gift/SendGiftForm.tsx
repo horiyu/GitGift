@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from 'react'
 import { MAX_MESSAGE_LENGTH } from '@/lib/gift'
+import ShareBoxLink from './ShareBoxLink'
 import { useGiftAction } from './useGiftAction'
 import styles from './gift.module.css'
 
@@ -51,7 +52,12 @@ export default function SendGiftForm({ to }: { to: string }) {
           )}
         </p>
       )}
-      {state.status === 'error' && <p className={styles.error}>{state.message}</p>}
+      {state.status === 'error' && (
+        <>
+          <p className={styles.error}>{state.message}</p>
+          {state.code === 'not-ready' && <ShareBoxLink to={to} />}
+        </>
+      )}
     </form>
   )
 }

@@ -24,6 +24,8 @@ Adding is idempotent. If the commit succeeded but closing the Issue failed, a re
 
 Gifts are public, because both the Issue and the README live in a public repository. The send form states this.
 
+A gift can only be sent to a user whose box is ready: the repository exists, its Issues are enabled, and the app is installed on it. GitGift does not notify users who have not set up a box, because doing so would require writing to their account unasked. Instead, the sender can copy a link to the recipient's GitGift page and pass it on; that page shows its owner how to set up the box.
+
 ## Security model
 
 | Concern | Mitigation |

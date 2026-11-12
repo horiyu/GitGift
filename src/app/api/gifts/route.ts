@@ -29,9 +29,9 @@ export async function POST(req: NextRequest) {
   const { octokit, login } = viewer
   try {
     const box = await getBox(octokit, to)
-    if (!box.exists) return NextResponse.json({ error: `@${to} does not have a GitGiftBOX yet.` }, { status: 404 })
+    if (!box.exists) return NextResponse.json({ error: `@${to} does not have a GitGiftBOX yet.`, code: 'not-ready' }, { status: 404 })
     if (!box.hasIssues) {
-      return NextResponse.json({ error: `@${to}'s GitGiftBOX cannot receive gifts yet.` }, { status: 409 })
+      return NextResponse.json({ error: `@${to}'s GitGiftBOX cannot receive gifts yet.`, code: 'not-ready' }, { status: 409 })
     }
 
     const siteUrl = process.env.NEXTAUTH_URL || req.nextUrl.origin
@@ -45,10 +45,10 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     const status = errorStatus(error)
     console.error('Failed to send gift', error)
-    if (status === 410) return NextResponse.json({ error: `@${to}'s GitGiftBOX has Issues disabled.` }, { status: 409 })
+    if (status === 410) return NextResponse.json({ error: `@${to}'s GitGiftBOX has Issues disabled.`, code: 'not-ready' }, { status: 409 })
     // A GitHub App token is limited to repositories where the app is installed.
     if (status === 403 || status === 404) {
-      return NextResponse.json({ error: `@${to} has not connected their GitGiftBOX to GitGift yet.` }, { status: 409 })
+      return NextResponse.json({ error: `@${to} has not connected their GitGiftBOX to GitGift yet.`, code: 'not-ready' }, { status: 409 })
     }
     return NextResponse.json({ error: 'Failed to send the gift.' }, { status: 502 })
   }
